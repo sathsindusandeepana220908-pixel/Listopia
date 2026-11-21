@@ -124,7 +124,7 @@ fun ListopiaApp() {
         val key = if (which == "Gemini") geminiKey.trim() else pixabayKey.trim()
         require(key.isNotBlank()) { "Enter your $which API key first." }
         if (which == "Gemini") {
-            val url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + URLEncoder.encode(key, "UTF-8")
+            val url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent"
             val payload = JsonObject().apply {
                 add("contents", JsonArray().apply {
                     add(JsonObject().apply {
@@ -135,7 +135,7 @@ fun ListopiaApp() {
                 })
                 add("generationConfig", JsonObject().apply { addProperty("maxOutputTokens", 24) })
             }.toString().toRequestBody("application/json".toMediaType())
-            val req = Request.Builder().url(url).post(payload).build()
+            val req = Request.Builder().url(url).header("x-goog-api-key", key).post(payload).build()
             http.newCall(req).execute().use { response ->
                 val body = response.body?.string().orEmpty()
                 if (!response.isSuccessful) error("Gemini test failed (HTTP ${response.code}): " + safeApiError(body))
@@ -306,12 +306,12 @@ Use factual, engaging, concise English. Do not invent facts; distinguish uncerta
 }
 
 private fun callGemini(key: String, prompt: String): String {
-    val url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + URLEncoder.encode(key, "UTF-8")
+    val url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent"
     val body = JsonObject().apply {
         add("contents", JsonArray().apply { add(JsonObject().apply { add("parts", JsonArray().apply { add(JsonObject().apply { addProperty("text", prompt) }) }) }) })
         add("generationConfig", JsonObject().apply { addProperty("temperature", 0.35); addProperty("responseMimeType", "application/json") })
     }.toString().toRequestBody("application/json".toMediaType())
-    val req = Request.Builder().url(url).post(body).build()
+    val req = Request.Builder().url(url).header("x-goog-api-key", key).post(body).build()
     http.newCall(req).execute().use { response ->
         val text = response.body?.string().orEmpty()
         if (!response.isSuccessful) error("Gemini request failed (HTTP ${response.code}). Check API key, quota and connection.")
