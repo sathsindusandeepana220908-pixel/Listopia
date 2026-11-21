@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -72,6 +73,7 @@ private fun securePrefs(context: Context) = runCatching {
         EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM)
 }.getOrThrow()
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ListopiaApp() {
     val context = LocalContext.current
