@@ -123,13 +123,34 @@ fun ListopiaApp() {
     suspend fun testKey(which: String): String = withContext(Dispatchers.IO) {
         val key = if (which == "Gemini") geminiKey.trim() else pixabayKey.trim()
         require(key.isNotBlank()) { "Enter your $which API key first." }
-        val url = if (which == "Gemini")
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}"
-        else "https://pixabay.com/api/?key=${key}&q=test&image_type=photo&per_page=3"
-        val req = Request.Builder().url(url).get().build()
-        http.newCall(req).execute().use { response ->
-            if (!response.isSuccessful) error("$which test failed (HTTP ${response.code}). Check the key and try again.")
-            "$which API connection successful."
+        if (which == "Gemini") {
+            val url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + URLEncoder.encode(key, "UTF-8")
+            val payload = JsonObject().apply {
+                add("contents", JsonArray().apply {
+                    add(JsonObject().apply {
+                        add("parts", JsonArray().apply {
+                            add(JsonObject().apply { addProperty("text", "Reply with exactly: Listopia API test successful") })
+                        })
+                    })
+                })
+                add("generationConfig", JsonObject().apply { addProperty("maxOutputTokens", 24) })
+            }.toString().toRequestBody("application/json".toMediaType())
+            val req = Request.Builder().url(url).post(payload).build()
+            http.newCall(req).execute().use { response ->
+                val body = response.body?.string().orEmpty()
+                if (!response.isSuccessful) error("Gemini test failed (HTTP ${response.code}): " + safeApiError(body))
+                val root = JsonParser.parseString(body).asJsonObject
+                if (root.getAsJsonArray("candidates")?.size() == 0) error("Gemini returned no test response.")
+                "Gemini API connection successful."
+            }
+        } else {
+            val url = "https://pixabay.com/api/?key=" + URLEncoder.encode(key, "UTF-8") + "&q=test&image_type=photo&per_page=3"
+            val req = Request.Builder().url(url).get().build()
+            http.newCall(req).execute().use { response ->
+                val body = response.body?.string().orEmpty()
+                if (!response.isSuccessful) error("Pixabay test failed (HTTP ${response.code}): " + safeApiError(body))
+                "Pixabay API connection successful."
+            }
         }
     }
 
@@ -264,6 +285,12 @@ fun ListopiaApp() {
 
 @Composable private fun EditField(label: String, value: String, lines: Int = 2, change: (String)->Unit) {
     OutlinedTextField(value, change, label={Text(label)}, modifier=Modifier.fillMaxWidth().padding(vertical=4.dp), minLines=lines)
+}
+
+private fun safeApiError(body: String): String {
+    val parsed = runCatching { JsonParser.parseString(body).asJsonObject }.getOrNull()
+    val msg = parsed?.getAsJsonObject("error")?.get("message")?.asString
+    return (msg ?: "Check that the key is complete, enabled for the correct API, and has available quota.").take(260)
 }
 
 private fun buildPrompt(type: ProjectType, idea: String, a: String, b: String): String {
