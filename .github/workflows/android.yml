@@ -6,7 +6,7 @@ on:
     branches: [ main ]
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -20,9 +20,8 @@ jobs:
         with:
           gradle-version: '8.9'
       - name: Build debug APK and release bundle
-        run: |
-          gradle assembleDebug bundleRelease
-      - name: Upload APK and AAB
+        run: gradle assembleDebug bundleRelease
+      - name: Upload APK and AAB as workflow artifacts
         uses: actions/upload-artifact@v4
         with:
           name: Listopia-Android-builds
@@ -31,3 +30,18 @@ jobs:
             app/build/outputs/bundle/release/*.aab
           if-no-files-found: error
           retention-days: 14
+      - name: Publish APK and AAB to GitHub Releases
+        if: github.event_name != 'pull_request'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Listopia Build ${{ github.run_number }}
+          body: |
+            Automated Listopia Android build from commit ${{ github.sha }}.
+
+            Install the APK on Android 8.0 or newer. Open Listopia > Settings to enter your own Gemini and Pixabay API keys.
+          files: |
+            app/build/outputs/apk/debug/app-debug.apk
+            app/build/outputs/bundle/release/app-release.aab
+          prerelease: true
+          make_latest: false
